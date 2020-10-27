@@ -39,6 +39,7 @@ def glue_convert_examples_to_features(
     task=None,
     label_list=None,
     output_mode=None,
+    cross_attn=True,
 ):
     """
     Loads a data file into a list of ``InputFeatures``
@@ -62,7 +63,7 @@ def glue_convert_examples_to_features(
             raise ValueError("When calling glue_convert_examples_to_features from TF, the task parameter is required.")
         return _tf_glue_convert_examples_to_features(examples, tokenizer, max_length=max_length, task=task)
     return _glue_convert_examples_to_features(
-        examples, tokenizer, max_length=max_length, task=task, label_list=label_list, output_mode=output_mode
+        examples, tokenizer, max_length=max_length, task=task, label_list=label_list, output_mode=output_mode, cross_attn=cross_attn,
     )
 
 
@@ -103,6 +104,7 @@ def _glue_convert_examples_to_features(
     task=None,
     label_list=None,
     output_mode=None,
+    cross_attn=True,
 ):
     if max_length is None:
         max_length = tokenizer.max_len
@@ -129,19 +131,39 @@ def _glue_convert_examples_to_features(
 
     labels = [label_from_example(example) for example in examples]
 
-    batch_encoding = tokenizer(
-        [(example.text_a, example.text_b) for example in examples],
-        max_length=max_length,
-        padding="max_length",
-        truncation=True,
-    )
-
     features = []
-    for i in range(len(examples)):
-        inputs = {k: batch_encoding[k][i] for k in batch_encoding}
+    if cross_attn or examples[0].text_b is None:
+        batch_encoding = tokenizer(
+            [(example.text_a, example.text_b) for example in examples],
+            max_length=max_length,
+            padding="max_length",
+            truncation=True,
+        )
 
-        feature = InputFeatures(**inputs, label=labels[i])
-        features.append(feature)
+        for i in range(len(examples)):
+            inputs = {k: batch_encoding[k][i] for k in batch_encoding}
+
+            feature = InputFeatures(**inputs, label=labels[i])
+            features.append(feature)
+    else:
+        batch_encoding1 = tokenizer(
+            [example.text_a for example in examples],
+            max_length=max_length,
+            padding="max_length",
+            truncation=True,
+        )
+        batch_encoding2 = tokenizer(
+            [example.text_b for example in examples],
+            max_length=max_length,
+            padding="max_length",
+            truncation=True,
+        )
+
+        for i in range(len(examples)):
+            inputs = {k: [batch_encoding1[k][i], batch_encoding2[k][i]] for k in batch_encoding1}
+
+            feature = InputFeatures(**inputs, label=labels[i])
+            features.append(feature)
 
     for i, example in enumerate(examples[:5]):
         logger.info("*** Example ***")

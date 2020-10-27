@@ -73,6 +73,7 @@ class GlueDataset(Dataset):
         limit_length: Optional[int] = None,
         mode: Union[str, Split] = Split.train,
         cache_dir: Optional[str] = None,
+        cross_attn: Optional[bool] = True,
     ):
         self.args = args
         self.processor = glue_processors[args.task_name]()
@@ -129,6 +130,7 @@ class GlueDataset(Dataset):
                     max_length=args.max_seq_length,
                     label_list=label_list,
                     output_mode=self.output_mode,
+                    cross_attn=cross_attn,
                 )
                 start = time.time()
                 torch.save(self.features, cached_features_file)
