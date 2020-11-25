@@ -1232,6 +1232,7 @@ class Trainer:
             torch.save(state_dict, os.path.join(output_dir, WEIGHTS_NAME))
         else:
             self.model.save_pretrained(output_dir)
+            torch.save(self.model, os.path.join(output_dir, "full_model.pt"))
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(output_dir)
 
